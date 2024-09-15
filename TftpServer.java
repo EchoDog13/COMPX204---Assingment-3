@@ -9,7 +9,15 @@ class TftpServerWorker extends Thread {
     private static final byte DATA = 2;
     private static final byte ACK = 3;
     private static final byte ERROR = 4;
+    private static boolean sendNextPacket = true;
 
+    private DatagramSocket ds = null;
+
+    /**
+     * Sends a file to the receiver.
+     * 
+     * @param filename the name of the file to be sent
+     */
     private void sendfile(String filename) {
 
         /*
@@ -23,28 +31,37 @@ class TftpServerWorker extends Thread {
         try {
 
             File file = new File(filename);
-            FileInputStream fis = new FileInputStream(file);
-            int character;
-
-            byte[] data = new byte[512];
-            int blockNumber = 0;
-            System.out.println("Sending port:" + req.getPort() + " Address:" + req.getAddress());
-
-            while ((character = fis.read(data)) != -1) {
-                // Printing out for testing purposes
-
-                byte sendingBuffer[] = new byte[514];
-                ; // 2 bytes for opcode, 2 for block number, rest for data
-
-                // Set the opcode (DATA = 03)
-                sendingBuffer[0] = 0;
-                sendingBuffer[1] = (byte) blockNumber;
-                blockNumber++;
-
-                // Send the data to the receiver - takes byte array
-                sendResponse(sendingBuffer);
+            if (file.exists() == false) {
+                System.out.println("File does not exist");
+                // Send error message
+                return;
 
             }
+            int numBlocks = (int) Math.ceil(file.length() / 512.0);
+            FileInputStream fis = new FileInputStream(file);
+            int character;
+            int charCount = 0;
+
+            byte sendingBuffer[] = new byte[514];
+            int blockNumber = 0;
+
+            System.out.println("Sending port:" + req.getPort() + " Address:" + req.getAddress());
+
+            // Read the file
+            while (fis.read(sendingBuffer) != -1) {
+
+                // Printing out for testing purposes
+                fis.readNBytes(sendingBuffer, 2, 512 - 1);
+
+                byte[] shiftedArray = shiftArray(sendingBuffer, 2);
+
+                shiftedArray[0] = "2".getBytes()[0];
+                shiftedArray[1] = String.valueOf(blockNumber).getBytes()[0];
+
+                blockNumber++;
+                sendResponse(shiftedArray);
+            }
+
             return;
 
         } catch (Exception e) {
@@ -53,10 +70,34 @@ class TftpServerWorker extends Thread {
 
     }
 
+    public static byte[] shiftArray(byte[] array, int positions) {
+        int length = array.length;
+        byte[] result = new byte[length];
+
+        // Handle cases where positions >= length
+        positions = positions % length;
+        if (positions < 0) {
+            positions += length;
+        }
+
+        // Perform the shift
+        for (int i = 0; i < length; i++) {
+            result[(i + positions) % length] = array[i];
+        }
+
+        return result;
+    }
+
     public void sendResponse(byte[] buffer) {
         // Send the response to the client
+
         DatagramPacket response = new DatagramPacket(buffer, buffer.length, req.getAddress(), req.getPort());
-        // packet.send(response);
+        try {
+            socket().send(response);
+            System.out.println("Response sent ON PORT " + req.getPort());
+        } catch (Exception e) {
+            System.err.println("Exception: " + e);
+        }
 
     }
 
@@ -94,8 +135,8 @@ class TftpServerWorker extends Thread {
             String fileName = request[1];
 
             sendfile(fileName);
-        } else {
-            System.out.println("Request is not a RRQ");
+        } else if (receivedRequest.startsWith("3")) {
+            System.out.println("Request is an ACK");
             return;
         }
 
@@ -103,9 +144,30 @@ class TftpServerWorker extends Thread {
 
     }
 
-    public TftpServerWorker(DatagramPacket req) {
-        this.req = req;
+    public DatagramSocket socket() {
 
+        if (ds == null) {
+            try {
+                ds = new DatagramSocket(req.getPort());
+                System.out.println("Socket created on port " + req.getPort());
+            } catch (Exception e) {
+                System.err.println("Exception: " + e);
+            }
+        }
+        return ds;
+    }
+
+    public class TftpServerManager {
+        public static TftpServer server;
+
+        static {
+            server = new TftpServer();
+        }
+    }
+
+    public TftpServerWorker(DatagramPacket req, DatagramSocket ds) {
+        this.req = req;
+        this.ds = ds;
     }
 }
 
@@ -124,7 +186,7 @@ class TftpServer {
                 String receivedRequest = new String(buf, 0, p.getLength(), "UTF-8");
                 System.out.println("Request:" + receivedRequest);
 
-                TftpServerWorker worker = new TftpServerWorker(p);
+                TftpServerWorker worker = new TftpServerWorker(p, ds);
                 worker.start();
             }
         } catch (Exception e) {
@@ -138,4 +200,5 @@ class TftpServer {
         TftpServer d = new TftpServer();
         d.start_server();
     }
+
 }

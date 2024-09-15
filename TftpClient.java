@@ -10,7 +10,6 @@ public class TftpClient {
     private DatagramSocket ds = null;
 
     /**
-     * 
      * @param args
      */
     public static void main(String args[]) {
@@ -23,6 +22,7 @@ public class TftpClient {
         client.processUserRequest(args);
 
         client.sendRQQ();
+        client.recieveFile();
 
         // Send RRQ Packet to Server to request file
         try {
@@ -102,19 +102,34 @@ public class TftpClient {
         return ds;
     }
 
-    public void recieveFile(DatagramSocket ds) {
+    public void recieveFile() {
 
         try {
-            DatagramSocket socketRecieve = new DatagramSocket();
-            byte[] recieveBuffer = new byte[1472];
-            DatagramPacket p = new DatagramPacket(recieveBuffer, 1472);
-            ds.receive(p);
+            TftpClient client = TftpClientManager.client;
+
+            byte[] recieveBuffer = new byte[514];
+            DatagramPacket p = new DatagramPacket(recieveBuffer, recieveBuffer.length);
+            client.ds.receive(p);
             System.out.println("Received request from " + p.getAddress() + " on port " + p.getPort());
             // Prints out the request to the console
             String receivedRequest = new String(recieveBuffer, 0, p.getLength(), "UTF-8");
             System.out.println("Request:" + receivedRequest);
 
-            ackPacket();
+            if (receivedRequest.startsWith("1")) {
+                System.out.println("Received RRQ Packet");
+
+            } else if (receivedRequest.startsWith("2")) {
+                System.out.println("Received Data Packet");
+
+                char packetNum = receivedRequest.charAt(1);
+                int packetNumInt = Character.getNumericValue(packetNum);
+                ackPacket(packetNumInt);
+
+            } else if (receivedRequest.startsWith("4")) {
+                System.out.println("Error Packet: File not found");
+
+                return;
+            }
 
             // TftpServerWorker worker = new TftpServerWorker(p);
             // worker.start();
@@ -125,7 +140,20 @@ public class TftpClient {
         return;
     }
 
-    public void ackPacket() {
+    public void ackPacket(int packetNum) {
+        try {
+            TftpClient client = TftpClientManager.client;
+
+            byte[] buf = new byte[1472];
+            buf = ("3" + packetNum).getBytes();
+
+            // Sends packet to server
+            System.out.println();
+            client.sendResponse(buf);
+
+        } catch (Exception e) {
+            System.err.println("Exception: " + e);
+        }
 
     }
 
