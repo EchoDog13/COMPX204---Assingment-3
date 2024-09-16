@@ -48,7 +48,7 @@ class TftpServerWorker extends Thread {
             System.out.println("Sending port:" + req.getPort() + " Address:" + req.getAddress());
 
             // Read the file
-            while (fis.read(sendingBuffer) != -1) {
+            for (int i = 0; i < numBlocks; i++) {
 
                 // Printing out for testing purposes
                 fis.readNBytes(sendingBuffer, 2, 512 - 1);

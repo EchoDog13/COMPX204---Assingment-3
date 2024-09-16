@@ -1,4 +1,5 @@
 import java.net.*;
+import java.io.*;
 
 public class TftpClient {
     private String serverHostname;
@@ -105,31 +106,49 @@ public class TftpClient {
     public void recieveFile() {
 
         try {
-            TftpClient client = TftpClientManager.client;
 
-            byte[] recieveBuffer = new byte[514];
-            DatagramPacket p = new DatagramPacket(recieveBuffer, recieveBuffer.length);
-            client.ds.receive(p);
-            System.out.println("Received request from " + p.getAddress() + " on port " + p.getPort());
-            // Prints out the request to the console
-            String receivedRequest = new String(recieveBuffer, 0, p.getLength(), "UTF-8");
-            System.out.println("Request:" + receivedRequest);
+            byte[] recieveBuffer;
+            DatagramPacket p;
+            File recievedFile = new File(getFilePath());
+            recievedFile.createNewFile();
 
-            if (receivedRequest.startsWith("1")) {
-                System.out.println("Received RRQ Packet");
+            do {
 
-            } else if (receivedRequest.startsWith("2")) {
-                System.out.println("Received Data Packet");
+                TftpClient client = TftpClientManager.client;
 
-                char packetNum = receivedRequest.charAt(1);
-                int packetNumInt = Character.getNumericValue(packetNum);
-                ackPacket(packetNumInt);
+                recieveBuffer = new byte[514];
+                FileOutputStream fos = new FileOutputStream(recievedFile, true);
 
-            } else if (receivedRequest.startsWith("4")) {
-                System.out.println("Error Packet: File not found");
+                p = new DatagramPacket(recieveBuffer, recieveBuffer.length);
+                client.ds.receive(p);
+                System.out.println("Received request from " + p.getAddress() + " on port " + p.getPort());
+                // Prints out the request to the console
+                String receivedRequest = new String(recieveBuffer, 0, p.getLength(), "UTF-8");
 
-                return;
-            }
+                System.out.println("Request:" + receivedRequest);
+
+                if (receivedRequest.startsWith("1")) {
+                    System.out.println("Received RRQ Packet");
+
+                } else if (receivedRequest.startsWith("2")) {
+                    System.out.println("Received Data Packet");
+
+                    char packetNum = receivedRequest.charAt(1);
+                    int packetNumInt = Character.getNumericValue(packetNum);
+                    // Remove header from packet
+                    recieveBuffer = new byte[p.getLength() - 2];
+
+                    fos.write(recieveBuffer);
+
+                    ackPacket(packetNumInt);
+
+                } else if (receivedRequest.startsWith("4")) {
+                    System.out.println("Error Packet: File not found");
+
+                    return;
+                }
+
+            } while (p.getLength() == 514);
 
             // TftpServerWorker worker = new TftpServerWorker(p);
             // worker.start();
