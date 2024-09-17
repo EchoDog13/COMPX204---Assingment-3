@@ -52,34 +52,32 @@ class TftpServerWorker extends Thread {
 
                 // Printing out for testing purposes
                 // fis.readNBytes(sendingBuffer, 2, 512 - 1);
-                while (sendNextPacket == true) {
 
-                    int bytesRead = 0;
-                    int maxBytes = 512;
-                    byte[] buffer = new byte[maxBytes];
+                int bytesRead = 0;
+                int maxBytes = 512;
+                byte[] buffer = new byte[maxBytes];
 
-                    while (bytesRead < maxBytes) {
-                        int b = fis.read(); // read a byte
-                        if (b == -1 || b == 0) { // end of file or null byte
-                            break;
-                        }
-                        buffer[bytesRead] = (byte) b;
-                        bytesRead++;
+                while (bytesRead < maxBytes) {
+                    int b = fis.read(); // read a byte
+                    if (b == -1 || b == 0) { // end of file or null byte
+                        break;
                     }
-
-                    // Optionally copy the valid bytes to a smaller array if needed
-                    byte[] sendingBuffer = new byte[bytesRead];
-                    System.arraycopy(buffer, 0, sendingBuffer, 0, bytesRead);
-
-                    byte[] shiftedArray = shiftArray(sendingBuffer, 2);
-
-                    shiftedArray[0] = "2".getBytes()[0];
-                    shiftedArray[1] = String.valueOf(blockNumber).getBytes()[0];
-
-                    blockNumber++;
-                    sendResponse(shiftedArray);
-                    sendNextPacket = false;
+                    buffer[bytesRead] = (byte) b;
+                    bytesRead++;
                 }
+
+                // Optionally copy the valid bytes to a smaller array if needed
+                byte[] sendingBuffer = new byte[bytesRead];
+                System.arraycopy(buffer, 0, sendingBuffer, 0, bytesRead);
+
+                byte[] shiftedArray = shiftArray(sendingBuffer, 2);
+
+                shiftedArray[0] = "2".getBytes()[0];
+                shiftedArray[1] = String.valueOf(blockNumber).getBytes()[0];
+
+                blockNumber++;
+                sendResponse(shiftedArray);
+                sendNextPacket = false;
             }
 
             return;
