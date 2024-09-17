@@ -42,7 +42,7 @@ class TftpServerWorker extends Thread {
             int character;
             int charCount = 0;
 
-            byte sendingBuffer[] = new byte[514];
+            // byte sendingBuffer[] = new byte[514];
             int blockNumber = 0;
 
             System.out.println("Sending port:" + req.getPort() + " Address:" + req.getAddress());
@@ -51,15 +51,35 @@ class TftpServerWorker extends Thread {
             for (int i = 0; i < numBlocks; i++) {
 
                 // Printing out for testing purposes
-                fis.readNBytes(sendingBuffer, 2, 512 - 1);
+                // fis.readNBytes(sendingBuffer, 2, 512 - 1);
+                while (sendNextPacket == true) {
 
-                byte[] shiftedArray = shiftArray(sendingBuffer, 2);
+                    int bytesRead = 0;
+                    int maxBytes = 512;
+                    byte[] buffer = new byte[maxBytes];
 
-                shiftedArray[0] = "2".getBytes()[0];
-                shiftedArray[1] = String.valueOf(blockNumber).getBytes()[0];
+                    while (bytesRead < maxBytes) {
+                        int b = fis.read(); // read a byte
+                        if (b == -1 || b == 0) { // end of file or null byte
+                            break;
+                        }
+                        buffer[bytesRead] = (byte) b;
+                        bytesRead++;
+                    }
 
-                blockNumber++;
-                sendResponse(shiftedArray);
+                    // Optionally copy the valid bytes to a smaller array if needed
+                    byte[] sendingBuffer = new byte[bytesRead];
+                    System.arraycopy(buffer, 0, sendingBuffer, 0, bytesRead);
+
+                    byte[] shiftedArray = shiftArray(sendingBuffer, 2);
+
+                    shiftedArray[0] = "2".getBytes()[0];
+                    shiftedArray[1] = String.valueOf(blockNumber).getBytes()[0];
+
+                    blockNumber++;
+                    sendResponse(shiftedArray);
+                    sendNextPacket = false;
+                }
             }
 
             return;
@@ -107,9 +127,6 @@ class TftpServerWorker extends Thread {
          * and then call sendfile
          */
 
-        // Print the name of the file requested
-        // System.out.println(getName());
-
         // Read Request to plain text
         // Determine Request Type
         // Process according
@@ -136,12 +153,12 @@ class TftpServerWorker extends Thread {
 
             sendfile(fileName);
         } else if (receivedRequest.startsWith("3")) {
-            System.out.println("Request is an ACK");
+            System.out.println("ACK Received. Block #" + receivedRequest.charAt(1));
+            sendNextPacket = true;
+
             return;
         }
-
         return;
-
     }
 
     public DatagramSocket socket() {
@@ -181,7 +198,8 @@ class TftpServer {
                 byte[] buf = new byte[1472];
                 DatagramPacket p = new DatagramPacket(buf, 1472);
                 ds.receive(p);
-                System.out.println("Received request from " + p.getAddress() + " on port " + p.getPort());
+                // System.out.println("Received request from " + p.getAddress() + " on port " +
+                // p.getPort());
                 // Prints out the request to the console
                 String receivedRequest = new String(buf, 0, p.getLength(), "UTF-8");
                 System.out.println("Request:" + receivedRequest);

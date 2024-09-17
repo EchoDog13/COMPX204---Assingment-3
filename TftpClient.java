@@ -107,23 +107,32 @@ public class TftpClient {
 
         try {
 
-            byte[] recieveBuffer;
+            byte[] recieveBuffer = new byte[514];
             DatagramPacket p;
-            File recievedFile = new File(getFilePath());
+            // TURN BACK ON TO SET TO FILE PATH
+            // File recievedFile = new File(getFilePath());
+
+            File recievedFile = new File("recievedFile.txt");
+
             recievedFile.createNewFile();
+            TftpClient client = TftpClientManager.client;
 
             do {
 
-                TftpClient client = TftpClientManager.client;
-
-                recieveBuffer = new byte[514];
+                // recieveBuffer
+                // Create a new file output stream matching file name
                 FileOutputStream fos = new FileOutputStream(recievedFile, true);
 
                 p = new DatagramPacket(recieveBuffer, recieveBuffer.length);
                 client.ds.receive(p);
+
+                byte[] data = new byte[p.getLength()];
+                System.arraycopy(p.getData(), 0, data, 0, p.getLength());
+                // byte[] data = p.getData().toString().getBytes();
+
                 System.out.println("Received request from " + p.getAddress() + " on port " + p.getPort());
                 // Prints out the request to the console
-                String receivedRequest = new String(recieveBuffer, 0, p.getLength(), "UTF-8");
+                String receivedRequest = new String(data, 0, p.getLength(), "UTF-8");
 
                 System.out.println("Request:" + receivedRequest);
 
@@ -136,9 +145,9 @@ public class TftpClient {
                     char packetNum = receivedRequest.charAt(1);
                     int packetNumInt = Character.getNumericValue(packetNum);
                     // Remove header from packet
-                    recieveBuffer = new byte[p.getLength() - 2];
+                    // recieveBuffer = new byte[p.getLength() - 2];
 
-                    fos.write(recieveBuffer);
+                    fos.write(recieveBuffer, 2, p.getLength() - 2);
 
                     ackPacket(packetNumInt);
 
@@ -148,7 +157,7 @@ public class TftpClient {
                     return;
                 }
 
-            } while (p.getLength() == 514);
+            } while (p.getLength() != 0 || p.getLength() == 514);
 
             // TftpServerWorker worker = new TftpServerWorker(p);
             // worker.start();
@@ -208,7 +217,6 @@ public class TftpClient {
         } catch (UnknownHostException e) {
             System.err.println("Failed to resolve host: " + e.getMessage());
         }
-
     }
 
     public static String getFilePath() {
