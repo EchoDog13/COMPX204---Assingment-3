@@ -1,10 +1,12 @@
 import java.net.*;
+import java.util.List;
 import java.io.*;
+import java.lang.reflect.Array;
 
 public class TftpClient {
     private String serverHostname;
     private Integer serverPort = 20202;
-    private Integer clientPort;;
+    private Integer clientPort;
     private static String filePath;
     private InetAddress address;
 
@@ -19,6 +21,7 @@ public class TftpClient {
         // Read in argument (port number excluded)
         // Args: hostName, port, filePath
         TftpClient client = TftpClientManager.client;
+        filePath = args[2];
         client.setAddress();
         client.processUserRequest(args);
 
@@ -27,18 +30,6 @@ public class TftpClient {
 
         // Send RRQ Packet to Server to request file
         try {
-            // DatagramSocket ds = new DatagramSocket();
-
-            // InetAddress addr = InetAddress.getByName(serverHostname);
-
-            // byte[] buf = new byte[1472];
-            // buf = ("1 " + filePath).getBytes();
-            // DatagramPacket p = new DatagramPacket(buf, buf.length, addr, serverPort);
-            // // Sends packet to server
-
-            // ds.send(p);
-
-            // System.out.println(new String(p.getData(), 0, p.getLength()));
 
         } catch (Exception e) {
             System.err.println("Exception: " + e);
@@ -55,7 +46,6 @@ public class TftpClient {
 
     public void sendRQQ() {
         try {
-
             TftpClient client = TftpClientManager.client;
 
             byte[] buf = new byte[1472];
@@ -84,7 +74,8 @@ public class TftpClient {
                 "Sending response to " + getHostName() + " on port " + response.getPort());
         try {
             socket().send(response);
-            System.out.println("request sent");
+            String tempString = new String(buffer, "UTF-8");
+            System.out.println("Client Request" + tempString);
         } catch (Exception e) {
             System.err.println("Exception: " + e);
         }
@@ -108,11 +99,14 @@ public class TftpClient {
         try {
 
             byte[] recieveBuffer = new byte[514];
+            byte[] blockDataBuffer;
+            byte blockNumber = 0;
+            byte previouseBlockNumber = -1;
             DatagramPacket p;
             // TURN BACK ON TO SET TO FILE PATH
-            // File recievedFile = new File(getFilePath());
+            File recievedFile = new File(getFilePath());
 
-            File recievedFile = new File("recievedFile.txt");
+            // File recievedFile = new File();
 
             recievedFile.createNewFile();
             TftpClient client = TftpClientManager.client;
@@ -130,34 +124,41 @@ public class TftpClient {
                 System.arraycopy(p.getData(), 0, data, 0, p.getLength());
                 // byte[] data = p.getData().toString().getBytes();
 
+                blockDataBuffer = new byte[p.getData().length - 2];
+                System.arraycopy(p.getData(), 2, blockDataBuffer, 0, p.getData().length - 2);
+                blockNumber = (byte) ((char) p.getData()[1]);
+                byte packetType = p.getData()[0];
+
+                if (blockNumber != previouseBlockNumber) {
+                    System.out.println("Block Number: " + blockNumber);
+                    writeToFile(blockDataBuffer, recievedFile);
+                    previouseBlockNumber = blockNumber;
+                } else {
+                    System.out.println("Duplicate Packet");
+                    ackPacket(blockNumber);
+                    continue;
+                }
+
                 System.out.println("Received request from " + p.getAddress() + " on port " + p.getPort());
                 // Prints out the request to the console
                 String receivedRequest = new String(data, 0, p.getLength(), "UTF-8");
 
                 System.out.println("Request:" + receivedRequest);
 
-                if (receivedRequest.startsWith("1")) {
-                    System.out.println("Received RRQ Packet");
-
-                } else if (receivedRequest.startsWith("2")) {
-                    System.out.println("Received Data Packet");
-
-                    char packetNum = receivedRequest.charAt(1);
-                    int packetNumInt = Character.getNumericValue(packetNum);
-                    // Remove header from packet
-                    // recieveBuffer = new byte[p.getLength() - 2];
+                if (packetType == 2) {
+                    System.out.println("Received Data Packet: " + blockNumber);
 
                     fos.write(recieveBuffer, 2, p.getLength() - 2);
 
-                    ackPacket(packetNumInt);
+                    ackPacket(blockNumber);
 
-                } else if (receivedRequest.startsWith("4")) {
+                } else if (packetType == 4) {
                     System.out.println("Error Packet: File not found");
 
                     return;
                 }
 
-            } while (p.getLength() != 0 || p.getLength() == 514);
+            } while (p.getLength() == 514);
 
             // TftpServerWorker worker = new TftpServerWorker(p);
             // worker.start();
@@ -168,15 +169,29 @@ public class TftpClient {
         return;
     }
 
+    public void writeToFile(byte[] data, File file) {
+        try {
+            FileOutputStream fos = new FileOutputStream(file, true);
+            fos.write(data);
+            fos.close();
+        } catch (Exception e) {
+            System.err.println("Exception: " + e);
+        }
+    }
+
     public void ackPacket(int packetNum) {
         try {
             TftpClient client = TftpClientManager.client;
 
-            byte[] buf = new byte[1472];
+            byte[] buf = new byte[2];
+            // buf[0] = 3;
+            // buf[1] = (byte) packetNum;
             buf = ("3" + packetNum).getBytes();
 
+            // write to buf
+
             // Sends packet to server
-            System.out.println();
+
             client.sendResponse(buf);
 
         } catch (Exception e) {
@@ -220,7 +235,7 @@ public class TftpClient {
     }
 
     public static String getFilePath() {
-        return filePath;
+        return "recived_" + filePath;
     }
 
     public static void setFilePath(String filePath) {
