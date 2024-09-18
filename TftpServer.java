@@ -202,37 +202,25 @@ class TftpServerWorker extends Thread {
         // Process the request
         // // System.out.println("Recieving Request");
 
-        byte[] data = req.getData(); // Get the raw data
+        byte[] receivedRequest = req.getData(); // Get the raw data
         int len = req.getLength(); // Get the length of the data
 
-        String receivedRequest = null;
-        try {
-            receivedRequest = new String(data, 0, len, "UTF-8");
+        byte[] data = Arrays.copyOfRange(receivedRequest, 1, len);
 
-        } catch (UnsupportedEncodingException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
-        String requestType = Character.toString((char) data[0]);
+        byte requestType = receivedRequest[0];
 
         // Check if the request is a RRQ
-        if (requestType.equals("1")) {
+        if (requestType == 1) {
             System.out.println("Request is a RRQ");
-
-            // Get file nameç
-            String[] request = receivedRequest.split(" ");
-            String fileName = request[1];
+            String fileName = new String(data);
+            System.out.println("Request file: " + fileName);
 
             sendfile(fileName);
-        } else if (requestType.equals("3")) {
-            System.out.println("ACK Received. Block #" + receivedRequest.charAt(1));
+        } else if (requestType == 3) {
+            System.out.println("yo reviced a ack first not a RRQ");
             // recievedBlockNumber = (byte) receivedRequest.charAt(1);
             // ackPacket = req;
-
-            return;
         }
-        return;
 
     }
 
@@ -257,9 +245,13 @@ class TftpServerWorker extends Thread {
         }
     }
 
-    public TftpServerWorker(DatagramPacket req, DatagramSocket ds) {
+    public TftpServerWorker(DatagramPacket req) {
         this.req = req;
-        this.ds = ds;
+        try {
+            this.ds = new DatagramSocket();
+        } catch (Exception e) {
+            System.err.println("Exception: " + e);
+        }
     }
 
     private List<byte[]> getBlocks(File file) {
@@ -303,12 +295,16 @@ class TftpServerWorker extends Thread {
 
         return new DatagramPacket(dataWithHeader, dataWithHeader.length, req.getAddress(), req.getPort());
     }
+
+    public int getPort() {
+        return req.getPort();
+    }
 }
 
 class TftpServer {
     public void start_server() {
         try {
-            DatagramSocket ds = new DatagramSocket(20202);
+            DatagramSocket ds = new DatagramSocket(69);
             System.out.println("TftpServer on port " + ds.getLocalPort() + " host:" + ds.getLocalAddress());
 
             for (;;) {
@@ -321,7 +317,8 @@ class TftpServer {
                 String receivedRequest = new String(buf, 0, p.getLength(), "UTF-8");
                 System.out.println("Request:" + receivedRequest);
 
-                TftpServerWorker worker = new TftpServerWorker(p, ds);
+                TftpServerWorker worker = new TftpServerWorker(p);
+                System.out.println("Worker created on port " + worker.getPort());
                 worker.start();
             }
         } catch (Exception e) {
