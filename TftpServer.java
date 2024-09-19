@@ -106,6 +106,11 @@ class TftpServerWorker extends Thread {
                     DatagramPacket packet = makePacket(DATA, blockNumber, currentBlock);
                     ds.send(packet);
 
+                    if (packet.getLength() < 514) {
+                        System.out.println("Last block sent.");
+                        return;
+                    }
+
                     try {
                         // Wait for ACK with a new DatagramPacket
                         byte[] ackBuffer = new byte[2];
@@ -235,14 +240,6 @@ class TftpServerWorker extends Thread {
             }
         }
         return ds;
-    }
-
-    public class TftpServerManager {
-        public static TftpServer server;
-
-        static {
-            server = new TftpServer();
-        }
     }
 
     public TftpServerWorker(DatagramPacket req) {
