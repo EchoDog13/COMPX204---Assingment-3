@@ -4,12 +4,16 @@ import java.io.*;
 import java.lang.reflect.Array;
 
 public class TftpClient {
+    // Store the server hostname;
     private static String serverHostname;
+    // Set the default port to 69 for the server
     private static Integer serverPort = 69;
-    private static Integer clientPort;
+    // private static Integer clientPort;
     private static String filePath;
+    // Create a new address;
     private static InetAddress address;
 
+    // Create a new socket null to be initialized later
     private static DatagramSocket ds = null;
 
     /**
@@ -17,9 +21,10 @@ public class TftpClient {
      */
     public static void main(String args[]) {
 
-        // Read in argument
+        // Read in args from the command line
         // Args: hostName, port, filePath
 
+        // Set the server hostname, port, and file path
         filePath = args[2];
         serverPort = Integer.parseInt(args[1]);
         serverHostname = args[0];
@@ -44,14 +49,17 @@ public class TftpClient {
     }
 
     /**
-     * 
+     * Sends a RRQ packet to the server
      */
     public static void sendRQQ() {
         try {
-
+            // Create a new buffer used to send the RRQ request
             byte[] buf = new byte[filePath.getBytes().length + 1];
+            // Set the first byte to 1 as it is a RRQ
             buf[0] = 1;
+            // Create Byte array of the file path
             byte[] filePathBytes = filePath.getBytes();
+            // Copy the file path bytes to the buffer
             System.arraycopy(filePathBytes, 0, buf, 1, filePathBytes.length);
 
             // Sends packet to server
@@ -59,14 +67,6 @@ public class TftpClient {
 
         } catch (Exception e) {
             System.err.println("Exception: " + e);
-        }
-    }
-
-    public static void processUserRequest(String args[]) {
-        if (args.length >= 2) {
-            serverHostname = args[0];
-            serverPort = Integer.parseInt(args[1]);
-            filePath = args[2];
         }
     }
 
@@ -78,16 +78,17 @@ public class TftpClient {
     public static void sendResponse(byte[] buffer) {
         // Send the response to the client
         DatagramPacket response = new DatagramPacket(buffer, buffer.length, address, serverPort);
-        System.out.println(
-                "Sending response to " + serverHostname + " on port " + response.getPort());
+        // Print out the response to the console
+        System.out.println("Sending response/request to " + serverHostname + " on port " + response.getPort());
         try {
+            // Send the response to the server
             socket().send(response);
+            // Print out the request to the console
             String tempString = new String(buffer, "UTF-8");
             System.out.println("Client Request" + tempString);
         } catch (Exception e) {
             System.err.println("Exception: " + e);
         }
-
     }
 
     /**
@@ -124,29 +125,39 @@ public class TftpClient {
 
             // Loop while packets == 514
             do {
-                // recieveBuffer
-                // Create a new file output stream matching file name
+                // Clear datagram packet from any previous data
                 p = null;
                 recieveBuffer = new byte[1472];
                 p = new DatagramPacket(recieveBuffer, 1472);
                 ds.receive(p);
 
+                // Get and set the address and port of the server
                 address = p.getAddress();
                 serverPort = p.getPort();
                 byte[] data = p.getData();
-                // byte[] data = p.getData().toString().getBytes();
 
+                // Create a new buffer to store the data from the packet without the header
                 blockDataBuffer = new byte[p.getLength() - 2];
+                // Copy the data from the packet to the buffer
                 System.arraycopy(data, 2, blockDataBuffer, 0, p.getLength() - 2);
+                // Get the block number from the packet
                 blockNumber = data[1];
+                // Get the packet type from the packet
                 byte packetType = data[0];
 
+                // Check if the block number is the same as the previous block number to
+                // determine if the packet is the next packet
                 if (blockNumber != previouseBlockNumber) {
                     System.out.println("Block Number: " + blockNumber);
+                    // Write the data to the file
                     writeToFile(blockDataBuffer, recievedFile);
+                    // Increment the block number
                     previouseBlockNumber = blockNumber;
+                    // Send an ACK packet to the server
                     ackPacket(blockNumber);
                 } else {
+                    // If the block number is the same as the previous block number, the packet is a
+                    // duplicate
                     System.out.println("Duplicate Packet");
                     ackPacket(blockNumber);
                     continue;
@@ -159,10 +170,9 @@ public class TftpClient {
 
                 if (packetType == 4) {
                     System.out.println("Error Packet: File not found");
-
                     return;
                 }
-
+                // Size of a full packet
             } while (p.getLength() == 514);
 
         } catch (Exception e) {
@@ -177,6 +187,7 @@ public class TftpClient {
      * @param data Data to write to file
      * @param file File to write to
      */
+
     public static void writeToFile(byte[] data, File file) {
         try {
             // Create a new file output stream matching file name
@@ -190,6 +201,11 @@ public class TftpClient {
         }
     }
 
+    /**
+     * Sends an ACK packet to the server
+     * 
+     * @param packetNum the packet number to send the ACK for
+     */
     public static void ackPacket(int packetNum) {
         try {
 

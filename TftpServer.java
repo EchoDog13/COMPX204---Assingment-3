@@ -4,11 +4,11 @@ import java.io.*;
 import java.util.*;
 
 /**
- * TFTP Server
+ * TFTP Server using TFTP protocol to send files to the client
  */
 class TftpServerWorker extends Thread {
     private DatagramPacket req;
-    private static final byte RRQ = 1; // Read Request
+    private static final byte RRQ = 1;
     private static final byte DATA = 2;
     private static final byte ACK = 3;
     private static final byte ERROR = 4;
@@ -41,6 +41,7 @@ class TftpServerWorker extends Thread {
             byte blockNumber = 0;
             // Last block is a boolean that checks if the block is the last block
             boolean lastBlock = false;
+            // number of times the ack has failed
             int ackFailures = 0;
 
             // Iterates through the blocks of the file from the blocks byte array
@@ -56,8 +57,10 @@ class TftpServerWorker extends Thread {
                 while (!ackReceived) {
                     // Create the packet to send the current block
                     DatagramPacket packet = makePacket(DATA, blockNumber, currentBlock);
+                    // Send the packet via the DatagramSocket ds
                     ds.send(packet);
 
+                    // Output if it is the last block
                     if (packet.getLength() < 514) {
                         System.out.println("Last block sent.");
                         return;
@@ -91,8 +94,8 @@ class TftpServerWorker extends Thread {
                         if (ackFailures >= 5) {
                             System.out.println("Too many ACK failures, aborting transfer.");
                             return;
-
                         }
+                        // Increment the number of ack failures
                         ackFailures++;
                     }
                 }
@@ -118,6 +121,7 @@ class TftpServerWorker extends Thread {
         // Send the response to the client
         DatagramPacket response = new DatagramPacket(buffer, buffer.length, req.getAddress(), req.getPort());
         try {
+            // Send the response via the DatagramSocket
             socket().send(response);
             System.out.println("Response sent ON PORT " + req.getPort());
         } catch (Exception e) {
@@ -176,6 +180,11 @@ class TftpServerWorker extends Thread {
         return ds;
     }
 
+    /**
+     * Creates a new TftpServerWorker
+     * 
+     * @param req the request to be processed
+     */
     public TftpServerWorker(DatagramPacket req) {
         this.req = req;
         try {
@@ -185,10 +194,19 @@ class TftpServerWorker extends Thread {
         }
     }
 
+    /**
+     * Gets the blocks of a file
+     * 
+     * @param file the file to get the blocks from
+     * @return the blocks of the file
+     */
     private List<byte[]> getBlocks(File file) {
+        // Create a new ArrayList of byte arrays to store the blocks
         List<byte[]> blocks = new ArrayList<byte[]>();
+        // Create a new byte array buffer to store the file data of a single block
         byte[] buffer = new byte[0];
 
+        // Read the file data into the buffer
         try {
             FileInputStream fis = new FileInputStream(file);
             buffer = fis.readAllBytes();
@@ -196,9 +214,11 @@ class TftpServerWorker extends Thread {
             return null;
         }
 
+        // Calculate the number of complete blocks and the size of the last block
         int numCompleteBlocks = buffer.length / 512;
         int lastBlockSize = buffer.length % 512;
 
+        // Add the complete blocks to the blocks list
         for (int i = 0; i < numCompleteBlocks; i++) {
             byte[] block = new byte[512];
             for (int j = 0; j < 512; j++) {
@@ -209,17 +229,21 @@ class TftpServerWorker extends Thread {
 
         byte[] block = new byte[lastBlockSize];
         block = Arrays.copyOfRange(buffer, buffer.length - lastBlockSize, buffer.length);
+        // Add the last block to the blocks list
         blocks.add(block);
         return blocks;
     }
 
     public DatagramPacket makePacket(byte packetType, byte blockNumber, byte[] packetData) {
 
+        // Create a new byte array to store the data with the header
         byte[] dataWithHeader = new byte[packetData.length + 2];
 
+        // Set header information of the packet
         dataWithHeader[0] = packetType;
         dataWithHeader[1] = blockNumber;
 
+        // Copy the data to the packet with an offset of 2 not to overwrite the header
         System.arraycopy(packetData, 0, dataWithHeader, 2, packetData.length);
 
         // System.out.println("Data: " + data);
@@ -227,17 +251,27 @@ class TftpServerWorker extends Thread {
         return new DatagramPacket(dataWithHeader, dataWithHeader.length, req.getAddress(), req.getPort());
     }
 
+    /**
+     * Gets the port of the request
+     * 
+     * @return the port of the request
+     */
     public int getPort() {
         return req.getPort();
     }
 }
 
+/**
+ * TFTP Server class that listens for requests and sends files to the client
+ */
 class TftpServer {
     public void start_server() {
         try {
+            // Create a new DatagramSocket to listen for requests
             DatagramSocket ds = new DatagramSocket();
             System.out.println("TftpServer on port " + ds.getLocalPort() + " host:" + ds.getLocalAddress());
 
+            // Loop to listen for requests continuously
             for (;;) {
                 byte[] buf = new byte[1472];
                 DatagramPacket p = new DatagramPacket(buf, 1472);
@@ -247,6 +281,7 @@ class TftpServer {
                 String receivedRequest = new String(buf, 0, p.getLength(), "UTF-8");
                 System.out.println("Request:" + receivedRequest);
 
+                // Create a new TftpServerWorker to process the request
                 TftpServerWorker worker = new TftpServerWorker(p);
                 System.out.println("Worker created on port " + worker.getPort());
                 worker.start();
@@ -258,6 +293,11 @@ class TftpServer {
         return;
     }
 
+    /**
+     * Main method to start the server
+     * 
+     * @param args
+     */
     public static void main(String args[]) {
         TftpServer d = new TftpServer();
         d.start_server();
