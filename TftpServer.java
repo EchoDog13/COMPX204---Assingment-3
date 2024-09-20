@@ -45,6 +45,7 @@ class TftpServerWorker extends Thread {
 
             // Iterates through the blocks of the file from the blocks byte array
             for (int i = 0; i < blocks.size(); i++) {
+                ackFailures = 0;
                 byte[] currentBlock = blocks.get(i);
 
                 // Check if this is the last block as it will be less than 512 bytes
@@ -87,7 +88,7 @@ class TftpServerWorker extends Thread {
                     } catch (SocketTimeoutException e) {
                         // Timeout: no ACK received, resend the packet
                         System.out.println("Timeout waiting for ACK, resending block #" + blockNumber);
-                        if (ackFailures > 5) {
+                        if (ackFailures >= 5) {
                             System.out.println("Too many ACK failures, aborting transfer.");
                             return;
 
