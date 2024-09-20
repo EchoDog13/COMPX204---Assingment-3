@@ -3,6 +3,11 @@ import java.util.List;
 import java.io.*;
 import java.lang.reflect.Array;
 
+/**
+ * TFTP Client
+ * * ID: 1630724
+ * 
+ */
 public class TftpClient {
     // Store the server hostname;
     private static String serverHostname;
