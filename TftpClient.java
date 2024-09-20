@@ -120,7 +120,7 @@ public class TftpClient {
             byte previouseBlockNumber = -1;
             DatagramPacket p;
             // TURN BACK ON TO SET TO FILE PATH
-            File recievedFile = new File("received" + filePath);
+            File recievedFile = new File("received_" + filePath);
 
             // Loop while packets == 514
             do {
