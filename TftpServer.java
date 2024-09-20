@@ -3,6 +3,9 @@ import java.nio.Buffer;
 import java.io.*;
 import java.util.*;
 
+/**
+ * TFTP Server
+ */
 class TftpServerWorker extends Thread {
     private DatagramPacket req;
     private static final byte RRQ = 1; // Read Request
@@ -10,7 +13,6 @@ class TftpServerWorker extends Thread {
     private static final byte ACK = 3;
     private static final byte ERROR = 4;
     private byte recievedBlockNumber = 0;
-    // DatagramPacket ackPacket;
 
     private DatagramSocket ds = null;
 
@@ -21,85 +23,31 @@ class TftpServerWorker extends Thread {
      */
     private void sendfile(String filename) {
 
-        /*
-         * open the file using a FileInputStream and send it, one block at
-         * a time, to the receiver.
-         */
-
-        // Open File using openFileInputStream
-        // Send it to the receiver in chucks of 512 bytes
-
-        // try {
-
-        // File file = new File(filename);
-        // if (file.exists() == false) {
-        // System.out.println("File does not exist");
-        // // Send error message
-        // return;
-
-        // }
-        // int numBlocks = (int) Math.ceil(file.length() / 512.0);
-        // FileInputStream fis = new FileInputStream(file);
-        // int character;
-        // int charCount = 0;
-
-        // // byte sendingBuffer[] = new byte[514];
-        // byte blockNumber = 0;
-
-        // System.out.println("Sending port:" + req.getPort() + " Address:" +
-        // req.getAddress());
-
-        // List<byte[]> blocks = getBlocks(file);
-
-        // Read the file
-        // for (int i = 0; i < blocks.size(); i++) {
-
-        // // Printing out for testing purposes
-
-        // // fis.readNBytes(sendingBuffer, 2, 512 - 1);
-        // // Sending the data
-        // // while (recievedBlockNumber != blockNumber) {
-
-        // byte[] currentBlock = blocks.get(i);
-        // DatagramPacket packet = makePacket(DATA, (byte) blockNumber, currentBlock);
-
-        // ds.send(packet);
-        // // recieveRequest();
-
-        // // Wait for ACK
-
-        // // ds.setSoTimeout(5000);
-        // // ds.send(packet);
-
-        // /// recieveRequest();
-        // // if (recievedBlockNumber == blockNumber) {
-        // // blockNumber++;
-
-        // // break;
-        // // }
-
-        // // }
-
-        // }
-
         try {
+            // Creates file to be send based on request file name
             File file = new File(filename);
+            // Check if file exists
             if (!file.exists()) {
                 System.out.println("File does not exist");
                 // Send error message
                 return;
             }
 
+            // Gets the blocks of the file to be send
             List<byte[]> blocks = getBlocks(file);
-            byte blockNumber = 0; // TFTP block number starts at 1
+            // Block number tracks the block number of the file
+            byte blockNumber = 0;
+            // Last block is a boolean that checks if the block is the last block
             boolean lastBlock = false;
 
+            // Iterates through the blocks of the file from the blocks byte array
             for (int i = 0; i < blocks.size(); i++) {
                 byte[] currentBlock = blocks.get(i);
 
-                // Check if this is the last block
+                // Check if this is the last block as it will be less than 512 bytes
                 lastBlock = currentBlock.length < 512;
 
+                // Loop until the ACK is received
                 boolean ackReceived = false;
                 while (!ackReceived) {
                     // Create the packet to send the current block
@@ -117,23 +65,16 @@ class TftpServerWorker extends Thread {
                         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, ackBuffer.length);
 
                         ds.setSoTimeout(5000); // 5-second timeout for ACK
-                        ds.receive(packet);
+                        ds.receive(packet); // Receive the ACK packet
+                        recievedBlockNumber = packet.getData()[1];
 
-                        byte[] ackData = ackPacket.getData();
-                        // if (ackData[0] == ACK && ackData[1] == blockNumber) {
-                        // System.out.println("Received ACK for block #" + blockNumber);
-                        // ackReceived = true; // ACK received, can send the next block
-                        // blockNumber++; // Increment block number for the next block
-                        // }
+                        // Check if the ACK is valid from the most recently send block
                         if (recievedBlockNumber == blockNumber) {
                             System.out.println("Received ACK for block #" + blockNumber);
                             ackReceived = true; // ACK received, can send the next block
                             blockNumber++; // Increment block number for the next block
-                            recievedBlockNumber++;
-
-                        }
-
-                        else {
+                            // recievedBlockNumber++;
+                        } else {
                             System.out.println("Invalid ACK received. Resending block #" + blockNumber);
                         }
                         ackReceived = true;
@@ -155,24 +96,6 @@ class TftpServerWorker extends Thread {
 
     }
 
-    public static byte[] shiftArray(byte[] array, int positions) {
-        int length = array.length;
-        byte[] result = new byte[length];
-
-        // Handle cases where positions >= length
-        positions = positions % length;
-        if (positions < 0) {
-            positions += length;
-        }
-
-        // Perform the shift
-        for (int i = 0; i < length; i++) {
-            result[(i + positions) % length] = array[i];
-        }
-
-        return result;
-    }
-
     public void sendResponse(byte[] buffer) {
         // Send the response to the client
 
@@ -183,20 +106,10 @@ class TftpServerWorker extends Thread {
         } catch (Exception e) {
             System.err.println("Exception: " + e);
         }
-
     }
 
     public void run() {
         recieveRequest();
-        /*
-         * parse the request packet, ensuring that it is a RRQ
-         * and then call sendfile
-         */
-
-        // Read Request to plain text
-        // Determine Request Type
-        // Process according
-        // TftpServerWorker worker;
 
     }
 
@@ -205,7 +118,6 @@ class TftpServerWorker extends Thread {
         // Parse the request
         // Determine the request type
         // Process the request
-        // // System.out.println("Recieving Request");
 
         byte[] receivedRequest = req.getData(); // Get the raw data
         int len = req.getLength(); // Get the length of the data
@@ -223,10 +135,7 @@ class TftpServerWorker extends Thread {
             sendfile(fileName);
         } else if (requestType == 3) {
             System.out.println("yo reviced a ack first not a RRQ");
-            // recievedBlockNumber = (byte) receivedRequest.charAt(1);
-            // ackPacket = req;
         }
-
     }
 
     public DatagramSocket socket() {
@@ -308,8 +217,7 @@ class TftpServer {
                 byte[] buf = new byte[1472];
                 DatagramPacket p = new DatagramPacket(buf, 1472);
                 ds.receive(p);
-                // System.out.println("Received request from " + p.getAddress() + " on port " +
-                // p.getPort());
+
                 // Prints out the request to the console
                 String receivedRequest = new String(buf, 0, p.getLength(), "UTF-8");
                 System.out.println("Request:" + receivedRequest);
