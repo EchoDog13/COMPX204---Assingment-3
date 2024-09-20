@@ -225,7 +225,7 @@ class TftpServerWorker extends Thread {
 class TftpServer {
     public void start_server() {
         try {
-            DatagramSocket ds = new DatagramSocket(69);
+            DatagramSocket ds = new DatagramSocket();
             System.out.println("TftpServer on port " + ds.getLocalPort() + " host:" + ds.getLocalAddress());
 
             for (;;) {
