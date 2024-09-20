@@ -16,12 +16,12 @@ public class TftpClient {
      * @param args
      */
     public static void main(String args[]) {
-        // Initial port number for server
 
-        // Read in argument (port number excluded)
+        // Read in argument
         // Args: hostName, port, filePath
 
         filePath = args[2];
+        serverPort = Integer.parseInt(args[1]);
         serverHostname = args[0];
         try {
             address = InetAddress.getByName(serverHostname);

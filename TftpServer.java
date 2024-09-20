@@ -66,6 +66,7 @@ class TftpServerWorker extends Thread {
 
                         ds.setSoTimeout(5000); // 5-second timeout for ACK
                         ds.receive(packet); // Receive the ACK packet
+                        // Get the block number from the ACK packet
                         recievedBlockNumber = packet.getData()[1];
 
                         // Check if the ACK is valid from the most recently send block
@@ -77,6 +78,7 @@ class TftpServerWorker extends Thread {
                         } else {
                             System.out.println("Invalid ACK received. Resending block #" + blockNumber);
                         }
+                        // set the ackReceived to true
                         ackReceived = true;
 
                     } catch (SocketTimeoutException e) {
@@ -96,9 +98,14 @@ class TftpServerWorker extends Thread {
 
     }
 
+    /**
+     * Sends a response to the client y creaking a datagram packet
+     * 
+     * @param buffer the buffer to send to the client
+     */
     public void sendResponse(byte[] buffer) {
-        // Send the response to the client
 
+        // Send the response to the client
         DatagramPacket response = new DatagramPacket(buffer, buffer.length, req.getAddress(), req.getPort());
         try {
             socket().send(response);
@@ -110,15 +117,18 @@ class TftpServerWorker extends Thread {
 
     public void run() {
         recieveRequest();
-
     }
 
+    /**
+     * Recieves a request from the client
+     */
     public void recieveRequest() {
         // Recieve the request
         // Parse the request
         // Determine the request type
         // Process the request
 
+        // Get the raw data from the request
         byte[] receivedRequest = req.getData(); // Get the raw data
         int len = req.getLength(); // Get the length of the data
 
@@ -131,17 +141,22 @@ class TftpServerWorker extends Thread {
             System.out.println("Request is a RRQ");
             String fileName = new String(data);
             System.out.println("Request file: " + fileName);
-
+            // Calls sendfile to send the file to the client
             sendfile(fileName);
         } else if (requestType == 3) {
-            System.out.println("yo reviced a ack first not a RRQ");
+            System.out.println("You received an ACK before a request");
         }
     }
 
+    /**
+     * Creates a socket for the server
+     * 
+     * @return
+     */
     public DatagramSocket socket() {
-
         if (ds == null) {
             try {
+                // Create a new DatagramSocket to recieve the request
                 ds = new DatagramSocket(req.getPort());
                 System.out.println("Socket created on port " + req.getPort());
             } catch (Exception e) {
