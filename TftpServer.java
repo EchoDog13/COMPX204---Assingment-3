@@ -29,6 +29,8 @@ class TftpServerWorker extends Thread {
             // Check if file exists
             if (!file.exists()) {
                 System.out.println("File does not exist");
+                // Send Error response
+                sendResponse(new byte[] { 4, "File does not exist".getBytes()[1] });
                 // Send error message
                 return;
             }
